@@ -1,0 +1,668 @@
+<!DOCTYPE html>
+<html lang="hi">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#0A1024">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<title>Aurum FX Signals</title>
+<link rel="manifest" href="manifest.json">
+<link rel="icon" href="icon-192.png">
+<link rel="apple-touch-icon" href="icon-192.png">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@700;900&family=Sora:wght@400;600;800&display=swap" rel="stylesheet">
+<style>
+:root{
+  --ink:#0A1024; --ink2:#141C40; --ink3:#0C1330;
+  --gold1:#FFF3C4; --gold2:#E9C46A; --gold3:#B8862B;
+  --silver1:#FFFFFF; --silver2:#D9DEE6; --silver3:#8E98A8;
+  --emerald:#18D98B; --ruby:#FF4D6D; --sapphire:#4F7BFF;
+}
+*{box-sizing:border-box}
+html,body{margin:0}
+body{
+  font-family:'Sora',system-ui,-apple-system,Segoe UI,Roboto,sans-serif;
+  color:var(--silver2); background:var(--ink);
+  background-image:
+    radial-gradient(1100px 600px at 5% -10%, rgba(79,123,255,.30), transparent 60%),
+    radial-gradient(900px 520px at 105% 5%, rgba(170,80,255,.24), transparent 60%),
+    radial-gradient(900px 600px at 50% 115%, rgba(233,196,106,.18), transparent 60%);
+  background-attachment:fixed;
+  padding:env(safe-area-inset-top) 0 calc(84px + env(safe-area-inset-bottom));
+  font-variant-numeric:tabular-nums; min-height:100vh;
+}
+.wrap{max-width:1100px;margin:0 auto;padding:14px}
+button,input,select,textarea{font:inherit}
+:focus-visible{outline:3px solid var(--gold2);outline-offset:2px}
+
+/* metal text */
+.gold{background:linear-gradient(180deg,#FFF8DA 0%,#F3D27A 32%,#B8862B 52%,#F9E7A8 72%,#9C6B12 100%);-webkit-background-clip:text;background-clip:text;color:transparent}
+.silver{background:linear-gradient(180deg,#FFFFFF 0%,#DDE3EA 35%,#8E98A8 55%,#F1F4F8 75%,#9BA5B4 100%);-webkit-background-clip:text;background-clip:text;color:transparent}
+
+/* mirror surfaces */
+.mirror{position:relative;overflow:hidden;
+  background:linear-gradient(155deg,rgba(255,255,255,.17) 0%,rgba(255,255,255,.04) 36%,rgba(255,255,255,.11) 50%,rgba(255,255,255,.03) 100%),linear-gradient(180deg,#18214A,#0E1531);
+  border:1px solid rgba(233,196,106,.38);
+  box-shadow:inset 0 1px 0 rgba(255,255,255,.45),inset 0 -2px 6px rgba(0,0,0,.45),0 14px 34px rgba(0,0,0,.5)}
+.mirror::before{content:"";position:absolute;left:-20%;right:-20%;top:-60%;height:90%;
+  background:linear-gradient(100deg,transparent 35%,rgba(255,255,255,.13) 47%,transparent 58%);transform:rotate(-8deg);pointer-events:none}
+.goldrim{border:2px solid transparent;
+  background:linear-gradient(155deg,rgba(255,255,255,.16),rgba(255,255,255,.03) 40%,rgba(255,255,255,.09) 55%,rgba(255,255,255,.02)) padding-box,
+             linear-gradient(180deg,#1A2352,#0D1432) padding-box,
+             linear-gradient(135deg,#FFF3C4,#C99A2E 28%,#FFFFFF 48%,#A87B1F 70%,#F5DD91) border-box}
+
+/* header */
+header{display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap;margin:4px 0 14px}
+.brand{font-family:'Cinzel',serif;font-weight:900;font-size:clamp(26px,7vw,38px);letter-spacing:.04em;line-height:1;margin:0;filter:drop-shadow(0 2px 0 rgba(0,0,0,.55))}
+.brand small{display:block;font-family:'Sora';font-weight:600;font-size:12px;letter-spacing:.02em;margin-top:6px;color:var(--silver3);-webkit-text-fill-color:var(--silver3)}
+.chips{display:flex;gap:6px;flex-wrap:wrap;justify-content:flex-end}
+.chip{border-radius:999px;padding:6px 11px;font-size:12px;font-weight:600;color:var(--silver1);border:1px solid rgba(255,255,255,.28);background:rgba(255,255,255,.07)}
+.chip.on{border-color:rgba(24,217,139,.7);color:#B9FFE2}
+.chip.warn{border-color:rgba(255,77,109,.7);color:#FFC2CD}
+.chip.goldc{border-color:rgba(233,196,106,.7);color:var(--gold1)}
+
+/* vault */
+.vault{border-radius:22px;padding:16px;display:grid;grid-template-columns:1.2fr 1fr;gap:14px;margin-bottom:12px}
+.vault .big{font-size:clamp(30px,8vw,44px);font-weight:800;line-height:1}
+.lbl{font-size:12px;color:var(--silver3);margin-bottom:6px}
+.stat{font-size:20px;font-weight:800;color:var(--silver1)}
+.pos{color:#7DFFC6}.neg{color:#FF9AAE}
+.bars{grid-column:1/-1;display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.bar{height:10px;border-radius:99px;background:rgba(255,255,255,.08);overflow:hidden;border:1px solid rgba(255,255,255,.15)}
+.bar i{display:block;height:100%;width:0;border-radius:99px;transition:width .6s}
+.bar.up i{background:linear-gradient(90deg,#B8862B,#FFE69A)}
+.bar.dn i{background:linear-gradient(90deg,#8E1830,#FF6F8A)}
+.barlbl{display:flex;justify-content:space-between;font-size:11px;color:var(--silver3);margin-top:4px}
+.err{grid-column:1/-1;font-size:12px;color:#FFB4C2;min-height:0}
+
+.banner{border-radius:14px;padding:12px 14px;margin-bottom:12px;font-weight:600;color:#FFE3A0;border:1px solid rgba(233,196,106,.55);background:linear-gradient(90deg,rgba(233,196,106,.20),rgba(233,196,106,.05))}
+.banner.bad{color:#FFD0D9;border-color:rgba(255,77,109,.6);background:linear-gradient(90deg,rgba(255,77,109,.22),rgba(255,77,109,.05))}
+[hidden]{display:none!important}
+
+/* pairs */
+.grid{display:grid;grid-template-columns:1fr;gap:10px}
+@media(min-width:720px){.grid{grid-template-columns:1fr 1fr}.vault{grid-template-columns:1.3fr 1fr 1fr 1fr}}
+.pair{border-radius:16px;padding:12px 12px 10px;display:grid;grid-template-columns:1fr auto;grid-template-areas:"info coin" "meta acts";gap:8px 10px;align-items:center}
+.sym{grid-area:info;font-family:'Cinzel',serif;font-weight:900;font-size:22px;letter-spacing:.03em}
+.px{font-family:'Sora';font-weight:600;font-size:14px;color:var(--silver2);-webkit-text-fill-color:var(--silver2);letter-spacing:0;margin-top:3px}
+.coin{grid-area:coin;min-width:92px;padding:10px 16px;border-radius:999px;text-align:center;font-family:'Cinzel',serif;font-weight:900;font-size:18px;letter-spacing:.06em;border:2px solid rgba(255,255,255,.55);box-shadow:inset 0 2px 0 rgba(255,255,255,.7),inset 0 -3px 0 rgba(0,0,0,.25)}
+.coin.buy{color:#03170E;background:linear-gradient(180deg,#A6FFD9,#18D98B 45%,#0A8F58 60%,#5BF0B2);animation:glowG 1.6s ease-in-out infinite}
+.coin.sell{color:#FFF;background:linear-gradient(180deg,#FFB8C5,#FF4D6D 45%,#B0183A 60%,#FF8299);animation:glowR 1.6s ease-in-out infinite}
+.coin.hold{color:#1B2233;background:linear-gradient(180deg,#FFFFFF,#D5DBE4 42%,#8E98A8 58%,#E8ECF1)}
+.coin.wait{color:var(--silver3);background:rgba(255,255,255,.06);border-color:rgba(255,255,255,.2);box-shadow:none;font-size:14px}
+@keyframes glowG{0%,100%{box-shadow:0 0 0 rgba(24,217,139,0);filter:brightness(.9)}50%{box-shadow:0 0 28px rgba(24,217,139,.9);filter:brightness(1.18)}}
+@keyframes glowR{0%,100%{box-shadow:0 0 0 rgba(255,77,109,0);filter:brightness(.9)}50%{box-shadow:0 0 28px rgba(255,77,109,.9);filter:brightness(1.18)}}
+.dim{animation:dim 1.8s ease-in-out infinite}
+@keyframes dim{0%,100%{opacity:1}50%{opacity:.42}}
+.meta{grid-area:meta;display:flex;gap:6px;flex-wrap:wrap}
+.tag{font-size:11.5px;padding:4px 8px;border-radius:8px;background:rgba(255,255,255,.07);border:1px solid rgba(255,255,255,.13);color:var(--silver2)}
+.tag.up{color:#8FFFD0;border-color:rgba(24,217,139,.45)}
+.tag.dn{color:#FFAABB;border-color:rgba(255,77,109,.45)}
+.tag.news{color:#2A1D02;font-weight:800;background:linear-gradient(180deg,#FFF1B8,#E9C46A);border-color:#FFF1B8}
+.acts{grid-area:acts;display:flex;gap:8px}
+
+/* buttons */
+.b{font-weight:800;border:0;border-radius:12px;padding:10px 16px;min-width:72px;cursor:pointer;
+  box-shadow:inset 0 1px 0 rgba(255,255,255,.75),inset 0 -3px 0 rgba(0,0,0,.25),0 6px 14px rgba(0,0,0,.4)}
+.b:active{transform:translateY(1px)}
+.b.buy{background:linear-gradient(180deg,#8CF5C8,#17C27D 55%,#0B7E50);color:#03170E}
+.b.sell{background:linear-gradient(180deg,#FFA1B2,#F03C5E 55%,#A3122F);color:#FFF}
+.b.goldb{background:linear-gradient(180deg,#FFF1B8,#E9C46A 45%,#B8862B 62%,#F3D98B);color:#2A1D02}
+.b.silverb{background:linear-gradient(180deg,#FFF,#CBD3DD 45%,#8E98A8 62%,#E6EAF0);color:#1A2030}
+.b.off{filter:grayscale(.85) brightness(.55)}
+.row{display:flex;gap:8px;flex-wrap:wrap}
+
+/* sections */
+section{display:none}
+section.active{display:block}
+h2{font-family:'Cinzel',serif;font-weight:900;font-size:24px;margin:6px 0 12px}
+.panel{border-radius:18px;padding:14px;margin-bottom:12px}
+.plist{display:grid;gap:8px}
+.prow{display:flex;justify-content:space-between;align-items:center;gap:8px;padding:10px 12px;border-radius:12px;background:rgba(255,255,255,.05);border:1px solid rgba(255,255,255,.1)}
+.role{font-size:11px;font-weight:800;padding:3px 8px;border-radius:6px;margin-right:6px}
+.role.main{background:linear-gradient(180deg,#FFF1B8,#E9C46A);color:#2A1D02}
+.role.hedge{background:linear-gradient(180deg,#FFF,#AEB8C6);color:#1A2030}
+.net{font-weight:800;font-size:18px}
+.empty{color:var(--silver3);font-size:14px;padding:6px 2px}
+
+/* forms */
+.fgroup{border-radius:18px;padding:14px;margin-bottom:12px}
+.fgroup h3{margin:0 0 10px;font-size:16px;color:var(--gold1)}
+.field{display:grid;gap:5px;margin-bottom:10px}
+.field label{font-size:13px;color:var(--silver2)}
+.field input,.field select,.ai select{width:100%;padding:11px 12px;border-radius:11px;border:1px solid rgba(217,222,230,.3);background:rgba(4,8,22,.55);color:var(--silver1)}
+.field.check{grid-template-columns:auto 1fr;align-items:center}
+.field.check input{width:22px;height:22px;accent-color:var(--gold2)}
+.two{display:grid;grid-template-columns:1fr 1fr;gap:0 10px}
+.note{font-size:12.5px;color:var(--silver3);line-height:1.55}
+.aiout{white-space:pre-wrap;line-height:1.6;font-size:14.5px;color:var(--silver1);min-height:60px}
+
+/* nav */
+nav{position:fixed;left:0;right:0;bottom:0;z-index:20;display:grid;grid-template-columns:repeat(4,1fr);
+  padding:8px 8px calc(8px + env(safe-area-inset-bottom));border-radius:18px 18px 0 0;border-bottom:0}
+nav button{background:none;border:0;color:var(--silver3);font-weight:800;font-size:13px;padding:10px 4px;border-radius:12px;cursor:pointer}
+nav button.active{color:#2A1D02;background:linear-gradient(180deg,#FFF1B8,#E9C46A 50%,#C99A2E)}
+
+/* toast + modal */
+#toast{position:fixed;left:50%;bottom:calc(92px + env(safe-area-inset-bottom));transform:translateX(-50%);z-index:40;
+  max-width:92vw;padding:12px 16px;border-radius:12px;font-weight:600;color:#fff;background:#1A2352;border:1px solid rgba(233,196,106,.6);box-shadow:0 10px 30px rgba(0,0,0,.6);display:none}
+#toast.ok{border-color:var(--emerald)}#toast.err{border-color:var(--ruby)}
+.modal{position:fixed;inset:0;z-index:50;background:rgba(3,6,18,.72);display:none;align-items:center;justify-content:center;padding:18px}
+.modal.show{display:flex}
+.modal .box{border-radius:20px;padding:18px;max-width:420px;width:100%}
+.modal p{color:var(--silver1);line-height:1.55}
+
+@media (prefers-reduced-motion:reduce){.coin.buy,.coin.sell,.dim{animation:none}.bar i{transition:none}}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <h1 class="brand gold">Aurum FX<small>M1–M5 scalping signals</small></h1>
+    <div class="chips">
+      <span class="chip goldc" id="modeChip">Paper</span>
+      <span class="chip" id="srcChip">Data: —</span>
+      <span class="chip" id="sessChip">—</span>
+      <span class="chip" id="clock">--:-- IST</span>
+    </div>
+  </header>
+
+  <div class="vault goldrim" id="vault">
+    <div>
+      <div class="lbl">Equity</div>
+      <div class="big gold" id="bal">$0.00</div>
+    </div>
+    <div>
+      <div class="lbl">Aaj ka net P/L</div>
+      <div class="stat" id="dn">$0.00</div>
+    </div>
+    <div>
+      <div class="lbl">Open trade</div>
+      <div class="stat" id="basket">Koi nahi</div>
+    </div>
+    <div>
+      <div class="lbl">Twelve Data credits</div>
+      <div class="stat" id="credits">0</div>
+    </div>
+    <div class="bars">
+      <div><div class="bar up"><i id="barUp"></i></div><div class="barlbl"><span>Profit target</span><span id="tgtLbl">$5</span></div></div>
+      <div><div class="bar dn"><i id="barDn"></i></div><div class="barlbl"><span>Loss limit</span><span id="lossLbl">$10</span></div></div>
+    </div>
+    <div class="err" id="err"></div>
+  </div>
+
+  <div class="banner dim" id="banner" hidden></div>
+
+  <!-- SIGNALS -->
+  <section id="tab-signals" class="active">
+    <div class="grid" id="grid"></div>
+  </section>
+
+  <!-- TRADES -->
+  <section id="tab-trades">
+    <h2 class="gold">Trades</h2>
+    <div class="panel mirror">
+      <div class="row" style="justify-content:space-between;align-items:center;margin-bottom:10px">
+        <div><div class="lbl">Main + hedge combined</div><div class="net" id="bNet">$0.00</div></div>
+        <button class="b sell" id="closeAll">Sab close karein</button>
+      </div>
+      <div class="plist" id="openList"></div>
+    </div>
+    <div class="panel mirror">
+      <div class="lbl">Aaj ke closed trades</div>
+      <div class="plist" id="histList"></div>
+    </div>
+  </section>
+
+  <!-- AI -->
+  <section id="tab-ai">
+    <h2 class="gold">Gemini AI</h2>
+    <div class="panel mirror ai">
+      <div class="field"><label for="aiPair">Pair chunein</label><select id="aiPair"></select></div>
+      <div class="row">
+        <button class="b goldb" id="aiExplain">Signal samjhao</button>
+        <button class="b silverb" id="aiNews">Aaj ki news check</button>
+      </div>
+    </div>
+    <div class="panel mirror"><div class="aiout" id="aiOut">Pair chunkar button dabayein. AI sirf salah deta hai, trade ka faisla aapka hai.</div></div>
+  </section>
+
+  <!-- SETTINGS -->
+  <section id="tab-settings">
+    <h2 class="gold">Settings</h2>
+    <div id="form"></div>
+    <div class="fgroup mirror">
+      <h3>Save aur backup</h3>
+      <div class="row" style="margin-bottom:10px">
+        <button class="b goldb" id="saveBtn">Settings save karein</button>
+        <button class="b silverb" id="genId">Naya Bridge ID</button>
+        <button class="b silverb" id="installBtn" hidden>App install karein</button>
+      </div>
+      <div class="row" style="margin-bottom:10px">
+        <button class="b silverb" id="backupNow">Abhi backup lein</button>
+        <button class="b silverb" id="restoreFb">Firebase se restore</button>
+      </div>
+      <div class="row" style="margin-bottom:10px">
+        <button class="b silverb" id="exportBtn">Backup file download</button>
+        <button class="b silverb" id="importBtn">Backup file se restore</button>
+        <input type="file" id="importFile" accept="application/json" hidden>
+      </div>
+      <div class="row"><button class="b sell" id="resetPaper">Paper account reset</button></div>
+      <p class="note" id="backupInfo"></p>
+      <p class="note">Keys sirf is phone me aur aapke Firebase backup me rehti hain, GitHub par kabhi nahi. Live mode me trade rules MT5 EA ke inputs se chalte hain, isliye dono jagah same values rakhein.</p>
+    </div>
+  </section>
+</div>
+
+<nav class="mirror">
+  <button class="active" data-tab="signals">Signals</button>
+  <button data-tab="trades">Trades</button>
+  <button data-tab="ai">AI</button>
+  <button data-tab="settings">Settings</button>
+</nav>
+
+<div id="toast"></div>
+<div class="modal" id="modal"><div class="box goldrim"><p id="modalText"></p><div class="row" style="justify-content:flex-end"><button class="b silverb" id="mNo">Nahi</button><button class="b goldb" id="mYes">Haan, trade lein</button></div></div></div>
+
+<script>
+'use strict';
+/* ================= CONFIG ================= */
+const PAIRS=['EURUSD','GBPUSD','USDJPY','AUDUSD','USDCAD','USDCHF','NZDUSD','EURJPY','GBPJPY','EURGBP'];
+// MAIN: [HEDGE, N/P]  N = negative correlation -> same direction, P = positive -> opposite
+const HEDGE={EURUSD:['USDCHF','N'],GBPUSD:['USDCHF','N'],AUDUSD:['USDCAD','N'],NZDUSD:['USDCAD','N'],USDCAD:['AUDUSD','N'],
+  USDCHF:['EURUSD','N'],USDJPY:['EURUSD','N'],EURJPY:['GBPJPY','P'],GBPJPY:['EURJPY','P'],EURGBP:['GBPUSD','N']};
+const DEF={mode:'paper',tdKey:'',gemKey:'',gemModel:'gemini-2.5-flash',fbUrl:'',bridgeId:'',fbAuth:'',backupKeys:true,
+  lot:0.01,minNet:0.10,maxNet:0.20,hedgeTrig:1.00,basketTarget:0.10,basketDD:5,dailyTarget:5,dailyLoss:10,maxPerPair:10,
+  startH:7,endH:16,paperStart:200,spreadMaj:1.0,spreadCross:2.0,commission:0,
+  validBars:3,fast:9,slow:21,trend:50,rsiP:14,rsiBuyMin:50,rsiBuyMax:70,rsiSellMin:30,rsiSellMax:50,
+  cpm:8,creditCap:800,alerts:true};
+
+/* ================= STORAGE ================= */
+const LS={get(k,d){try{const v=localStorage.getItem(k);return v?JSON.parse(v):d}catch(e){return d}},
+          set(k,v){try{localStorage.setItem(k,JSON.stringify(v))}catch(e){}}};
+let S=Object.assign({},DEF,LS.get('fx_settings',{}));
+let P=LS.get('fx_paper',null)||{balance:S.paperStart,positions:[],history:[],hedgedMain:null};
+const saveS=()=>LS.set('fx_settings',S);
+const saveP=()=>{P.history=P.history.slice(0,500);LS.set('fx_paper',P)};
+if(navigator.storage&&navigator.storage.persist) navigator.storage.persist().catch(()=>{});
+
+/* ================= HELPERS ================= */
+const $=id=>document.getElementById(id);
+const esc=s=>String(s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const fmtSym=s=>s.slice(0,3)+'/'+s.slice(3);
+const money=v=>(v<0?'-$':'$')+Math.abs(v).toFixed(2);
+const sleep=ms=>new Promise(r=>setTimeout(r,ms));
+const IST=330*60000;
+const istDayOf=t=>new Date(t+IST).toISOString().slice(0,10);
+const istDay=()=>istDayOf(Date.now());
+const istStr=t=>new Date(t+IST).toISOString().slice(11,16);
+function inWindow(){const h=new Date(Date.now()+IST).getUTCHours();return S.startH<=S.endH?(h>=S.startH&&h<S.endH):(h>=S.startH||h<S.endH)}
+function toast(msg,type=''){const t=$('toast');t.textContent=msg;t.className=type;t.style.display='block';clearTimeout(toast._t);toast._t=setTimeout(()=>t.style.display='none',3500)}
+function confirmBox(text){return new Promise(res=>{$('modalText').textContent=text;$('modal').classList.add('show');
+  $('mYes').onclick=()=>{$('modal').classList.remove('show');res(true)};$('mNo').onclick=()=>{$('modal').classList.remove('show');res(false)}})}
+let lastErr='';
+const setErr=m=>{lastErr=m||''};
+
+/* ================= MARKET DATA ================= */
+const MD={};PAIRS.forEach(p=>MD[p]={price:null,sig:'WAIT',rsi:null,trend:0,upd:0,news:0,trades:0,src:''});
+
+function ema(a,p){const k=2/(p+1),o=[];let e=a[0];for(let i=0;i<a.length;i++){e=i?a[i]*k+e*(1-k):a[0];o.push(e)}return o}
+function rsiW(a,p){const o=new Array(a.length).fill(null);if(a.length<=p)return o;let g=0,l=0;
+  for(let i=1;i<=p;i++){const d=a[i]-a[i-1];if(d>0)g+=d;else l-=d}g/=p;l/=p;o[p]=l===0?100:100-100/(1+g/l);
+  for(let i=p+1;i<a.length;i++){const d=a[i]-a[i-1];g=(g*(p-1)+Math.max(d,0))/p;l=(l*(p-1)+Math.max(-d,0))/p;o[i]=l===0?100:100-100/(1+g/l)}return o}
+
+// Same strategy as EA: M5 EMA trend + M1 EMA cross (last N closed bars) + RSI
+function analyze(bars){
+  const n=bars.length;if(n<150)return null;
+  const c=bars.map(b=>b.c),f=ema(c,S.fast),s=ema(c,S.slow),r=rsiW(c,S.rsiP);
+  const m5=[];let key=null;
+  for(const b of bars){const k=Math.floor(b.t/300000);if(k!==key){m5.push(b.c);key=k}else m5[m5.length-1]=b.c}
+  if(m5.length<S.trend+3)return null;
+  const tr=ema(m5,S.trend),L=m5.length,tc=m5[L-2],t1=tr[L-2],t2=tr[L-3];
+  const up=tc>t1&&t1>t2,dn=tc<t1&&t1<t2,i1=n-2;
+  let bx=false,sx=false;
+  for(let k=0;k<S.validBars;k++){const a=i1-k,b=a-1;if(b<0)break;if(f[a]>s[a]&&f[b]<=s[b])bx=true;if(f[a]<s[a]&&f[b]>=s[b])sx=true}
+  const rv=r[i1];let sig='HOLD';
+  if(bx&&f[i1]>s[i1]&&up&&rv>=S.rsiBuyMin&&rv<=S.rsiBuyMax)sig='BUY';
+  else if(sx&&f[i1]<s[i1]&&dn&&rv>=S.rsiSellMin&&rv<=S.rsiSellMax)sig='SELL';
+  return {price:c[n-1],sig,rsi:rv,trend:up?1:dn?-1:0};
+}
+function setMD(sym,a,src){
+  const m=MD[sym],prev=m.sig;
+  Object.assign(m,a,{upd:Date.now(),src});
+  if(prev!==m.sig&&(m.sig==='BUY'||m.sig==='SELL')&&prev!=='WAIT')sigAlert(sym,m.sig);
+}
+
+/* ---------- Twelve Data (credit-aware scheduler) ---------- */
+let CR=LS.get('fx_credits',{day:'',used:0});
+function credits(){const d=new Date().toISOString().slice(0,10);if(CR.day!==d)CR={day:d,used:0};return CR}
+async function tdFetch(sym){
+  const url=`https://api.twelvedata.com/time_series?symbol=${encodeURIComponent(fmtSym(sym))}&interval=1min&outputsize=500&timezone=UTC&apikey=${encodeURIComponent(S.tdKey)}`;
+  credits().used++;LS.set('fx_credits',CR);
+  const j=await (await fetch(url)).json();
+  if(j.status!=='ok'||!j.values)throw new Error('Twelve Data: '+(j.message||'error'));
+  return j.values.map(v=>({t:Date.parse(v.datetime.replace(' ','T')+'Z'),c:+v.close})).reverse();
+}
+let rr=0,tick=0;
+function openSyms(){return S.mode==='paper'?[...new Set(P.positions.map(p=>p.sym))]:[]}
+function nextSym(){
+  tick++;const open=openSyms();
+  if(open.length&&tick%2===0)return open[Math.floor(tick/2)%open.length];
+  if(!inWindow())return open[0]||null;
+  return PAIRS[rr++%PAIRS.length];
+}
+async function tdLoop(){
+  try{
+    if(S.tdKey&&!document.hidden&&!bridgeOnline()){
+      if(credits().used>=S.creditCap)setErr('Twelve Data daily limit poori. Kal reset hogi ya plan upgrade karein.');
+      else{const sym=nextSym();if(sym){const a=analyze(await tdFetch(sym));if(a)setMD(sym,a,'Twelve Data');setErr('')}}
+    }
+  }catch(e){setErr(e.message)}
+  setTimeout(tdLoop,Math.max(2000,60000/Math.max(1,S.cpm)));
+}
+
+/* ---------- Firebase (REST) + MT5 bridge ---------- */
+const fbReady=()=>S.fbUrl&&S.bridgeId&&S.bridgeId.length>=16;
+async function fb(method,path,body,query=''){
+  const auth=S.fbAuth?'auth='+encodeURIComponent(S.fbAuth):'';
+  const qs=[query,auth].filter(Boolean).join('&');
+  const url=`${S.fbUrl.replace(/\/+$/,'')}/u/${encodeURIComponent(S.bridgeId)}${path}.json${qs?'?'+qs:''}`;
+  const r=await fetch(url,{method,headers:{'Content-Type':'application/json'},body:body===undefined?undefined:JSON.stringify(body)});
+  if(!r.ok)throw new Error('Firebase '+r.status+' (URL, rules ya Bridge ID check karein)');
+  return r.json();
+}
+let BR=null;
+const bridgeOnline=()=>!!(BR&&BR.ts&&Math.abs(Date.now()-BR.ts)<20000);
+async function brLoop(){
+  if(fbReady()&&!document.hidden){
+    try{const j=await fb('GET','/mt5');if(j&&j.ts){BR=j;if(bridgeOnline()&&j.pairs){for(const p of PAIRS){const x=j.pairs[p];if(!x)continue;
+        setMD(p,{price:(x.bid+x.ask)/2,sig:x.sig,rsi:x.rsi,trend:x.trend,news:x.news,trades:x.trades},'MT5')}}}}
+    catch(e){if(S.mode==='live')setErr(e.message)}
+  }
+  setTimeout(brLoop,3000);
+}
+async function sendCmd(action,sym,dir){
+  if(!fbReady())return toast('Settings me Firebase URL aur Bridge ID daalein','err');
+  const id='c'+Date.now();
+  try{await fb('PUT','/cmd',{id,action,symbol:sym||'',dir:dir||0,lot:S.lot,ts:Date.now()})}catch(e){return toast(e.message,'err')}
+  toast('MT5 ko bheja, jawab ka intezaar…');
+  for(let i=0;i<15;i++){await sleep(2000);
+    try{const r=await fb('GET','/cmdResult');if(r&&r.id===id){toast((r.ok?'MT5: ':'MT5 ne mana kiya: ')+r.msg,r.ok?'ok':'err');return}}catch(e){}}
+  toast('MT5 se jawab nahi aaya. Kya EA chal raha hai?','err');
+}
+
+/* ================= PAPER TRADING ENGINE ================= */
+const pip=s=>s.endsWith('JPY')?0.01:0.0001;
+const half=s=>(['EURJPY','GBPJPY','EURGBP'].includes(s)?S.spreadCross:S.spreadMaj)*pip(s)/2;
+function toUSD(q){if(q==='USD')return 1;const a=MD['USD'+q];if(a&&a.price)return 1/a.price;const b=MD[q+'USD'];if(b&&b.price)return b.price;return null}
+function posNet(p){
+  const m=MD[p.sym];if(!m||!m.price)return p.lastNet||0;
+  const exit=p.dir>0?m.price-half(p.sym):m.price+half(p.sym),conv=toUSD(p.sym.slice(3));
+  if(conv==null)return p.lastNet||0;
+  p.lastNet=(exit-p.entry)*p.dir*p.lot*100000*conv-S.commission*p.lot;return p.lastNet;
+}
+function paperOpen(sym,dir,role){
+  const m=MD[sym],entry=dir>0?m.price+half(sym):m.price-half(sym);
+  const p={id:Date.now()+Math.random().toString(36).slice(2,6),sym,dir,lot:S.lot,entry,t:Date.now(),role,peak:-1e9,lastNet:0};
+  P.positions.push(p);saveP();toast(`${role==='MAIN'?'Main':'Hedge'} ${dir>0?'BUY':'SELL'} ${fmtSym(sym)} khula`,'ok');return p;
+}
+function paperClose(p,reason){
+  const net=posNet(p);P.balance+=net;
+  P.history.unshift({sym:p.sym,dir:p.dir,role:p.role,t:p.t,closeT:Date.now(),net,reason});
+  P.positions=P.positions.filter(x=>x.id!==p.id);saveP();
+  toast(`${fmtSym(p.sym)} close ${money(net)} (${reason})`,net>=0?'ok':'err');
+}
+function closeAllPaper(reason){[...P.positions].forEach(p=>paperClose(p,reason))}
+function paperTradesToday(sym){const d=istDay();
+  return P.history.filter(h=>h.role==='MAIN'&&h.sym===sym&&istDayOf(h.t)===d).length+P.positions.filter(p=>p.role==='MAIN'&&p.sym===sym).length}
+function paperDaily(){const d=istDay();
+  return P.history.filter(h=>istDayOf(h.closeT)===d).reduce((a,h)=>a+h.net,0)+P.positions.reduce((a,p)=>a+posNet(p),0)}
+function paperTick(){
+  if(!P.positions.length)return;
+  if(paperDaily()<=-S.dailyLoss)return closeAllPaper('Daily loss limit');
+  const main=P.positions.find(p=>p.role==='MAIN'),hedge=P.positions.find(p=>p.role==='HEDGE');
+  const lock=S.minNet+(S.maxNet-S.minNet)*0.5;
+  const single=p=>{const n=posNet(p);p.peak=Math.max(p.peak,n);
+    if(n>=S.maxNet){paperClose(p,'Max target');return true}
+    if(p.peak>=lock&&n<=S.minNet){paperClose(p,'Profit lock');return true}
+    if(S.basketDD>0&&n<=-S.basketDD){paperClose(p,'Max loss');return true}
+    return false};
+  if(main&&!hedge){
+    if(single(main))return;
+    if(posNet(main)<=-S.hedgeTrig&&P.hedgedMain!==main.id){
+      const h=HEDGE[main.sym];
+      if(!h){P.hedgedMain=main.id;return}
+      if(MD[h[0]].price){paperOpen(h[0],h[1]==='N'?main.dir:-main.dir,'HEDGE');P.hedgedMain=main.id;saveP()}
+    }
+    return;
+  }
+  if(!main&&hedge){single(hedge);return}
+  const b=posNet(main)+posNet(hedge);
+  if(b>=S.basketTarget)closeAllPaper('Basket target');
+  else if(S.basketDD>0&&b<=-S.basketDD)closeAllPaper('Basket DD $'+S.basketDD);
+}
+
+/* ================= RULES / VIEW MODEL ================= */
+function dailyNet(){return S.mode==='paper'?paperDaily():(bridgeOnline()&&BR.acct?BR.acct.dailyNet:0)}
+function curPositions(){
+  if(S.mode==='paper')return P.positions.map(p=>({id:p.id,sym:p.sym,dir:p.dir,role:p.role,lot:p.lot,net:posNet(p)}));
+  return bridgeOnline()&&Array.isArray(BR.positions)?BR.positions.map(p=>({id:p.t,sym:p.sym,dir:p.dir,role:p.role,lot:p.lot,net:p.net})):[];
+}
+function tradesToday(sym){return S.mode==='paper'?paperTradesToday(sym):(MD[sym].trades||0)}
+function globalBlock(){
+  if(S.mode==='live'&&!fbReady())return 'Live mode ke liye Settings me Firebase URL aur Bridge ID daalein.';
+  if(S.mode==='live'&&!bridgeOnline())return 'MT5 bridge offline hai. PC par MT5 aur SignalBridge EA chalu karein.';
+  if(S.mode==='paper'&&!S.tdKey&&!bridgeOnline())return 'Settings me Twelve Data API key daalein.';
+  const dn=dailyNet();
+  if(dn<=-S.dailyLoss)return `Aaj ka loss limit (${money(S.dailyLoss)}) hit. Kal fir trade karein.`;
+  if(dn>=S.dailyTarget)return `Aaj ka profit target (${money(S.dailyTarget)}) poora. Naye trades band.`;
+  if(!inWindow())return `Trading time ${S.startH}:00 se ${S.endH}:00 IST hai. Abhi naye trades band.`;
+  return '';
+}
+function pairBlock(sym){
+  const g=globalBlock();if(g)return g;
+  if(curPositions().length)return 'Ek trade pehle se open hai. Uske close hone ka wait karein.';
+  if(tradesToday(sym)>=S.maxPerPair)return `${fmtSym(sym)} par aaj ke ${S.maxPerPair} trades poore.`;
+  const m=MD[sym];
+  if(!m.price||Date.now()-m.upd>180000)return `${fmtSym(sym)} ka price purana hai, update ka wait karein.`;
+  if(m.news)return `${fmtSym(sym)} par high impact news ka time hai.`;
+  return '';
+}
+async function manualTrade(sym,dir){
+  const why=pairBlock(sym);if(why)return toast(why,'err');
+  const sig=MD[sym].sig,want=dir>0?'BUY':'SELL';
+  if(sig!==want&&!(await confirmBox(`${fmtSym(sym)} par abhi signal ${sig} hai, ${want} nahi. Phir bhi ${want} trade lena hai?`)))return;
+  if(S.mode==='paper'){paperOpen(sym,dir,'MAIN');render()}
+  else sendCmd('open',sym,dir);
+}
+
+/* ================= ALERTS ================= */
+let AC;
+function beep(up){try{AC=AC||new (window.AudioContext||window.webkitAudioContext)();const o=AC.createOscillator(),g=AC.createGain();
+  o.frequency.value=up?880:440;g.gain.value=.08;o.connect(g);g.connect(AC.destination);o.start();o.stop(AC.currentTime+.2)}catch(e){}}
+function sigAlert(sym,sig){
+  if(!S.alerts||!inWindow())return;
+  if(navigator.vibrate)navigator.vibrate([90,50,90]);beep(sig==='BUY');
+  toast(`${fmtSym(sym)}: ${sig} signal`,sig==='BUY'?'ok':'err');
+  if('Notification'in window&&Notification.permission==='granted'&&document.hidden&&navigator.serviceWorker)
+    navigator.serviceWorker.getRegistration().then(r=>r&&r.showNotification('Aurum FX',{body:`${fmtSym(sym)} ${sig} signal`,icon:'icon-192.png'}));
+}
+
+/* ================= RENDER ================= */
+function buildGrid(){
+  $('grid').innerHTML=PAIRS.map(p=>`
+  <article class="pair mirror">
+    <div class="sym silver" style="grid-area:info">${fmtSym(p)}<div class="px" id="px-${p}">Price aa raha hai…</div></div>
+    <div class="coin wait" id="sg-${p}">…</div>
+    <div class="meta"><span class="tag" id="tr-${p}">M5 trend</span><span class="tag" id="rs-${p}">RSI</span><span class="tag" id="tc-${p}">0/${S.maxPerPair}</span><span class="tag news dim" id="nw-${p}" hidden>News</span></div>
+    <div class="acts"><button class="b buy" data-sym="${p}" data-dir="1">Buy</button><button class="b sell" data-sym="${p}" data-dir="-1">Sell</button></div>
+  </article>`).join('');
+  $('aiPair').innerHTML=PAIRS.map(p=>`<option value="${p}">${fmtSym(p)}</option>`).join('');
+}
+$('grid').addEventListener('click',e=>{const b=e.target.closest('button[data-sym]');if(b)manualTrade(b.dataset.sym,+b.dataset.dir)});
+
+let listSig='';
+function render(){
+  $('clock').textContent=istStr(Date.now())+' IST';
+  const iw=inWindow();$('sessChip').textContent=iw?'Trading time':'Market band (aapke rules)';$('sessChip').className='chip '+(iw?'on':'warn');
+  $('modeChip').textContent=S.mode==='paper'?'Paper trading':'MT5 live';
+  const bo=bridgeOnline();$('srcChip').textContent=bo?'Data: MT5 live':(S.tdKey?'Data: Twelve Data':'Data: key nahi');$('srcChip').className='chip '+(bo?'on':'');
+
+  const pos=curPositions(),floating=pos.reduce((a,p)=>a+p.net,0),dn=dailyNet();
+  const eq=S.mode==='paper'?P.balance+floating:(bo&&BR.acct?BR.acct.eq:0);
+  $('bal').textContent=money(eq);
+  const dEl=$('dn');dEl.textContent=money(dn);
+  dEl.className='stat '+(dn>=0?'pos':'neg')+((dn>=S.dailyTarget*0.7||dn<=-S.dailyLoss*0.7)?' dim':'');
+  $('barUp').style.width=Math.min(100,Math.max(0,dn/S.dailyTarget*100))+'%';
+  $('barDn').style.width=Math.min(100,Math.max(0,-dn/S.dailyLoss*100))+'%';
+  $('tgtLbl').textContent=money(S.dailyTarget);$('lossLbl').textContent=money(S.dailyLoss);
+  const bk=$('basket');
+  if(pos.length){bk.textContent=money(floating)+(pos.length>1?' (hedge on)':'');bk.className='stat dim '+(floating>=0?'pos':'neg')}
+  else{bk.textContent='Koi nahi';bk.className='stat'}
+  $('credits').textContent=bo?'MT5 se free':`${credits().used}/${S.creditCap}`;
+  $('err').textContent=lastErr;
+
+  const gb=globalBlock(),ban=$('banner');
+  if(gb){ban.hidden=false;ban.textContent=gb;ban.className='banner dim'+(dn<=-S.dailyLoss||gb.includes('offline')?' bad':'')}else ban.hidden=true;
+
+  for(const p of PAIRS){
+    const m=MD[p],d=p.endsWith('JPY')?3:5;
+    $('px-'+p).textContent=m.price?m.price.toFixed(d)+'  '+(m.upd?Math.round((Date.now()-m.upd)/1000)+'s pehle':''):'Price aa raha hai…';
+    const c=$('sg-'+p);c.textContent=m.sig==='WAIT'?'…':m.sig;c.className='coin '+m.sig.toLowerCase();
+    const t=$('tr-'+p);t.textContent=m.trend>0?'M5 ▲ Up':m.trend<0?'M5 ▼ Down':'M5 Flat';t.className='tag '+(m.trend>0?'up':m.trend<0?'dn':'');
+    $('rs-'+p).textContent='RSI '+(m.rsi!=null?m.rsi.toFixed(0):'–');
+    $('tc-'+p).textContent=`${tradesToday(p)}/${S.maxPerPair} aaj`;
+    $('nw-'+p).hidden=!m.news;
+    const off=!!pairBlock(p);
+    document.querySelectorAll(`button[data-sym="${p}"]`).forEach(b=>b.classList.toggle('off',off));
+  }
+
+  // trades tab
+  $('bNet').textContent=money(floating);$('bNet').className='net '+(floating>=0?'pos':'neg')+(pos.length?' dim':'');
+  const sig=pos.map(p=>p.id).join(',');
+  if(sig!==listSig){listSig=sig;
+    $('openList').innerHTML=pos.length?pos.map(p=>`<div class="prow"><div><span class="role ${p.role==='MAIN'?'main':'hedge'}">${p.role==='MAIN'?'Main':'Hedge'}</span><b class="silver">${fmtSym(p.sym)}</b> ${p.dir>0?'Buy':'Sell'} ${p.lot}</div><div class="net" id="pn-${p.id}"></div></div>`).join('')
+      :'<div class="empty">Koi trade open nahi. Signals tab se Buy ya Sell dabayein.</div>'}
+  pos.forEach(p=>{const el=$('pn-'+p.id);if(el){el.textContent=money(p.net);el.className='net '+(p.net>=0?'pos':'neg')}});
+  const hist=S.mode==='paper'?P.history.filter(h=>istDayOf(h.closeT)===istDay()):(bo&&Array.isArray(BR.hist)?BR.hist:[]);
+  const hk='h'+hist.length+S.mode;
+  if(render._hk!==hk){render._hk=hk;
+    $('histList').innerHTML=hist.length?hist.slice(0,30).map(h=>`<div class="prow"><div><span class="role ${h.role==='MAIN'?'main':'hedge'}">${h.role==='MAIN'?'Main':'Hedge'}</span>${fmtSym(h.sym)} <span class="note">${h.closeT?istStr(h.closeT):''} ${esc(h.reason||'')}</span></div><div class="net ${h.net>=0?'pos':'neg'}">${money(h.net)}</div></div>`).join('')
+      :'<div class="empty">Aaj abhi tak koi trade close nahi hua.</div>'}
+}
+
+/* ================= TABS ================= */
+document.querySelectorAll('nav button').forEach(b=>b.addEventListener('click',()=>{
+  document.querySelectorAll('nav button').forEach(x=>x.classList.toggle('active',x===b));
+  document.querySelectorAll('section').forEach(s=>s.classList.toggle('active',s.id==='tab-'+b.dataset.tab));
+  window.scrollTo(0,0);
+}));
+$('closeAll').onclick=async()=>{
+  if(!curPositions().length)return toast('Koi trade open nahi hai');
+  if(!(await confirmBox('Sab open trades (main + hedge) abhi close karne hain?')))return;
+  if(S.mode==='paper'){closeAllPaper('Manual close');render()}else sendCmd('close_all');
+};
+
+/* ================= GEMINI ================= */
+async function gemini(prompt,search){
+  if(!S.gemKey)throw new Error('Settings me Gemini API key daalein.');
+  const body={contents:[{parts:[{text:prompt}]}]};if(search)body.tools=[{google_search:{}}];
+  const r=await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${encodeURIComponent(S.gemModel)}:generateContent?key=${encodeURIComponent(S.gemKey)}`,
+    {method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(body)});
+  const j=await r.json();if(j.error)throw new Error('Gemini: '+j.error.message);
+  return ((j.candidates&&j.candidates[0]&&j.candidates[0].content&&j.candidates[0].content.parts)||[]).map(p=>p.text||'').join('')||'Jawab khali aaya.';
+}
+async function runAI(search){
+  const p=$('aiPair').value,m=MD[p],out=$('aiOut');out.textContent='Gemini soch raha hai…';
+  const prompt=search
+    ?`Aaj (${istDay()}) ${fmtSym(p)} ke liye ${p.slice(0,3)} aur ${p.slice(3)} currencies ki high impact economic news ka IST time batao, khaas kar ${S.startH}:00 se ${S.endH}:00 IST ke beech. Hinglish me, chhoti list me. Agar pakka pata na ho to saaf bolo.`
+    :`Tum forex scalping assistant ho. Pair ${fmtSym(p)}. Strategy: M5 EMA${S.trend} trend filter, M1 EMA${S.fast}/${S.slow} crossover, RSI${S.rsiP}. Abhi: price ${m.price}, signal ${m.sig}, M5 trend ${m.trend>0?'up':m.trend<0?'down':'flat'}, RSI ${m.rsi!=null?m.rsi.toFixed(1):'NA'}. Target net $${S.minNet}-$${S.maxNet} per 0.01 lot. Hinglish me 4-5 line me samjhao: signal kitna mazboot hai, kya risk hai, entry ke liye kya dekhna chahiye. Guarantee mat do.`;
+  try{out.textContent=await gemini(prompt,search)}catch(e){out.textContent=e.message}
+}
+$('aiExplain').onclick=()=>runAI(false);$('aiNews').onclick=()=>runAI(true);
+
+/* ================= SETTINGS FORM ================= */
+const FORM=[
+ ['Mode',[['mode','select','Trading mode',{paper:'Paper trading (practice)',live:'MT5 live (bridge se)'}]]],
+ ['API keys',[['tdKey','password','Twelve Data API key'],['gemKey','password','Gemini API key'],['gemModel','text','Gemini model name']]],
+ ['MT5 bridge (Firebase)',[['fbUrl','text','Firebase Realtime Database URL'],['bridgeId','text','Bridge ID (16+ akshar, EA me bhi yahi)'],['fbAuth','password','Firebase secret (optional)']]],
+ ['Trade rules',[['lot','number','Lot size'],['minNet','number','Min net profit (lock) $'],['maxNet','number','Max net profit $'],['hedgeTrig','number','Kitne $ loss par hedge khule'],['basketTarget','number','Main + hedge target $'],['basketDD','number','Main + hedge max loss $'],['dailyTarget','number','Daily profit target $'],['dailyLoss','number','Daily max loss $'],['maxPerPair','number','Har pair par trades/din'],['startH','number','Start hour (IST)'],['endH','number','End hour (IST)']]],
+ ['Strategy',[['validBars','number','Signal kitne M1 bar tak valid'],['fast','number','Fast EMA'],['slow','number','Slow EMA'],['trend','number','M5 trend EMA'],['rsiP','number','RSI period'],['rsiBuyMin','number','RSI buy min'],['rsiBuyMax','number','RSI buy max'],['rsiSellMin','number','RSI sell min'],['rsiSellMax','number','RSI sell max']]],
+ ['Paper account',[['paperStart','number','Starting balance $'],['spreadMaj','number','Spread majors (pips)'],['spreadCross','number','Spread crosses (pips)'],['commission','number','Commission $ per lot']]],
+ ['Data aur alerts',[['cpm','number','Twelve Data calls per minute'],['creditCap','number','Twelve Data daily limit'],['alerts','checkbox','Signal par sound + vibration'],['backupKeys','checkbox','Firebase backup me keys bhi save hon']]]
+];
+function buildForm(){
+  $('form').innerHTML=FORM.map(([title,fields])=>`<div class="fgroup mirror"><h3>${title}</h3><div class="${fields.length>3&&fields.every(f=>f[1]==='number')?'two':''}">`+
+    fields.map(([k,type,label,opts])=>{
+      const id='f-'+k;
+      if(type==='select')return `<div class="field"><label for="${id}">${label}</label><select id="${id}">${Object.entries(opts).map(([v,t])=>`<option value="${v}">${t}</option>`).join('')}</select></div>`;
+      if(type==='checkbox')return `<div class="field check"><input type="checkbox" id="${id}"><label for="${id}">${label}</label></div>`;
+      return `<div class="field"><label for="${id}">${label}</label><input id="${id}" type="${type}" ${type==='number'?'step="any" inputmode="decimal"':'autocomplete="off" spellcheck="false"'}></div>`;
+    }).join('')+'</div></div>').join('');
+  fillForm();
+}
+function fillForm(){FORM.forEach(([,f])=>f.forEach(([k,type])=>{const el=$('f-'+k);if(type==='checkbox')el.checked=!!S[k];else el.value=S[k]}))}
+function readForm(){FORM.forEach(([,f])=>f.forEach(([k,type])=>{const el=$('f-'+k);
+  if(type==='checkbox')S[k]=el.checked;else if(type==='number'){const v=parseFloat(el.value);S[k]=isNaN(v)?DEF[k]:v}else S[k]=el.value.trim()}))}
+$('saveBtn').onclick=async()=>{
+  const oldMode=S.mode;readForm();
+  if(S.bridgeId&&S.bridgeId.length<16)return toast('Bridge ID kam se kam 16 akshar ka rakhein','err');
+  saveS();buildGrid();listSig='';render._hk='';render();
+  if(S.alerts&&'Notification'in window&&Notification.permission==='default')Notification.requestPermission();
+  if(oldMode!==S.mode&&P.positions.length&&S.mode==='live')toast('Paper trades ruk gaye hain, paper mode me wapas aane par chalenge');
+  else toast('Settings save ho gayi','ok');
+  if(fbReady())fb('PUT','/settings',backupSettings()).catch(()=>{});
+};
+$('genId').onclick=()=>{const a=new Uint8Array(12);crypto.getRandomValues(a);$('f-bridgeId').value='fx'+[...a].map(x=>x.toString(16).padStart(2,'0')).join('');toast('Naya ID bana. Save dabayein aur EA me bhi yahi daalein.')};
+$('resetPaper').onclick=async()=>{if(await confirmBox(`Paper account reset karke ${money(S.paperStart)} se shuru karna hai? History mit jayegi.`)){P={balance:S.paperStart,positions:[],history:[],hedgedMain:null};saveP();listSig='';render._hk='';render();toast('Paper account reset','ok')}};
+
+/* ================= BACKUP ================= */
+function backupSettings(){const s={...S};if(!S.backupKeys){s.tdKey='';s.gemKey='';s.fbAuth=''}return s}
+async function doBackup(force){
+  if(!fbReady())return force&&toast('Pehle Firebase URL aur Bridge ID save karein','err');
+  const d=istDay();if(!force&&LS.get('fx_lastBackup','')===d)return;
+  try{await fb('PUT','/backup/'+d,{ts:Date.now(),settings:backupSettings(),paper:P});await fb('PUT','/settings',backupSettings());
+    LS.set('fx_lastBackup',d);if(force)toast('Backup ho gaya','ok');showBackupInfo()}catch(e){if(force)toast(e.message,'err')}
+}
+function showBackupInfo(){const d=LS.get('fx_lastBackup','');$('backupInfo').textContent=d?`Aakhri Firebase backup: ${d}. Roz app kholte hi apne aap backup hota hai.`:'Firebase set hone ke baad roz apne aap backup hoga.'}
+$('backupNow').onclick=()=>doBackup(true);
+$('restoreFb').onclick=async()=>{
+  const url=$('f-fbUrl').value.trim(),id=$('f-bridgeId').value.trim();
+  if(!url||id.length<16)return toast('Firebase URL aur Bridge ID likh kar restore dabayein','err');
+  S.fbUrl=url;S.bridgeId=id;S.fbAuth=$('f-fbAuth').value.trim();
+  try{
+    const s=await fb('GET','/settings');
+    const keys=await fb('GET','/backup',undefined,'shallow=true');
+    if(!s&&!keys)return toast('Is Bridge ID par koi backup nahi mila','err');
+    if(s){const keep={tdKey:S.tdKey,gemKey:S.gemKey};S=Object.assign({},DEF,s);if(!S.tdKey)S.tdKey=keep.tdKey;if(!S.gemKey)S.gemKey=keep.gemKey}
+    if(keys){const last=Object.keys(keys).sort().pop();const b=await fb('GET','/backup/'+last);if(b&&b.paper&&await confirmBox(`${last} ka paper account bhi restore karein?`)){P=Object.assign({positions:[],history:[],hedgedMain:null},b.paper);saveP()}}
+    saveS();fillForm();buildGrid();listSig='';render._hk='';toast('Restore ho gaya','ok');
+  }catch(e){toast(e.message,'err')}
+};
+$('exportBtn').onclick=()=>{
+  const blob=new Blob([JSON.stringify({app:'aurum-fx',ts:Date.now(),settings:S,paper:P},null,2)],{type:'application/json'});
+  const a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download=`aurum-fx-backup-${istDay()}.json`;a.click();setTimeout(()=>URL.revokeObjectURL(a.href),5000);
+};
+$('importBtn').onclick=()=>$('importFile').click();
+$('importFile').onchange=async e=>{const f=e.target.files[0];if(!f)return;
+  try{const j=JSON.parse(await f.text());if(j.app!=='aurum-fx')throw new Error('Yeh Aurum FX backup file nahi hai');
+    S=Object.assign({},DEF,j.settings);P=Object.assign({positions:[],history:[],hedgedMain:null},j.paper);saveS();saveP();fillForm();buildGrid();listSig='';render._hk='';toast('File se restore ho gaya','ok')}
+  catch(err){toast(err.message,'err')}e.target.value=''};
+
+/* ================= INSTALL ================= */
+let deferred=null;
+window.addEventListener('beforeinstallprompt',e=>{e.preventDefault();deferred=e;$('installBtn').hidden=false});
+$('installBtn').onclick=async()=>{if(!deferred)return;deferred.prompt();await deferred.userChoice;deferred=null;$('installBtn').hidden=true};
+if('serviceWorker'in navigator)navigator.serviceWorker.register('sw.js').catch(()=>{});
+
+/* ================= START ================= */
+buildGrid();buildForm();showBackupInfo();render();
+setInterval(()=>{if(S.mode==='paper')paperTick();render()},1000);
+setInterval(()=>doBackup(false),30*60000);doBackup(false);
+tdLoop();brLoop();
+if(!S.tdKey&&!fbReady())toast('Shuru karne ke liye Settings me Twelve Data key daalein');
+</script>
+</body>
+</html>
