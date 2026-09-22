@@ -101,7 +101,8 @@ header{display:flex;align-items:center;justify-content:space-between;gap:10px;fl
 .tag.up{color:#8FFFD0;border-color:rgba(24,217,139,.45)}
 .tag.dn{color:#FFAABB;border-color:rgba(255,77,109,.45)}
 .tag.news{color:#2A1D02;font-weight:800;background:linear-gradient(180deg,#FFF1B8,#E9C46A);border-color:#FFF1B8}
-.acts{grid-area:acts;display:flex;gap:8px}
+.acts{grid-area:acts;display:flex;gap:8px;justify-content:flex-end;min-height:44px;align-items:center}
+.waitnote{font-size:12.5px;color:var(--silver3)}
 
 /* buttons */
 .b{font-weight:800;border:0;border-radius:12px;padding:10px 16px;min-width:72px;cursor:pointer;
@@ -184,7 +185,7 @@ nav button.active{color:#2A1D02;background:linear-gradient(180deg,#FFF1B8,#E9C46
     </div>
     <div>
       <div class="lbl">Twelve Data credits</div>
-      <div class="stat" id="credits">0</div>
+      <div class="stat" id="credits">0</div><div class="lbl" id="creditInfo" style="margin-top:4px"></div>
     </div>
     <div class="bars">
       <div><div class="bar up"><i id="barUp"></i></div><div class="barlbl"><span>Profit target</span><span id="tgtLbl">$5</span></div></div>
@@ -273,16 +274,17 @@ const PAIRS=['EURUSD','GBPUSD','USDJPY','AUDUSD','USDCAD','USDCHF','NZDUSD','EUR
 // MAIN: [HEDGE, N/P]  N = negative correlation -> same direction, P = positive -> opposite
 const HEDGE={EURUSD:['USDCHF','N'],GBPUSD:['USDCHF','N'],AUDUSD:['USDCAD','N'],NZDUSD:['USDCAD','N'],USDCAD:['AUDUSD','N'],
   USDCHF:['EURUSD','N'],USDJPY:['EURUSD','N'],EURJPY:['GBPJPY','P'],GBPJPY:['EURJPY','P'],EURGBP:['GBPUSD','N']};
-const DEF={mode:'paper',tdKey:'',gemKey:'',gemModel:'gemini-2.5-flash',fbUrl:'',bridgeId:'',fbAuth:'',backupKeys:true,
+const DEF={mode:'paper',tdKey:'',gemKey:'',gemModel:'gemini-3.6-flash',fbUrl:'',bridgeId:'',fbAuth:'',backupKeys:true,
   lot:0.01,minNet:0.10,maxNet:0.20,hedgeTrig:1.00,basketTarget:0.10,basketDD:5,dailyTarget:5,dailyLoss:10,maxPerPair:10,
   startH:7,endH:16,paperStart:200,spreadMaj:1.0,spreadCross:2.0,commission:0,
   validBars:3,fast:9,slow:21,trend:50,rsiP:14,rsiBuyMin:50,rsiBuyMax:70,rsiSellMin:30,rsiSellMax:50,
-  cpm:8,creditCap:800,alerts:true};
+  cpm:8,creditCap:800,budget:true,alerts:true};
 
 /* ================= STORAGE ================= */
 const LS={get(k,d){try{const v=localStorage.getItem(k);return v?JSON.parse(v):d}catch(e){return d}},
           set(k,v){try{localStorage.setItem(k,JSON.stringify(v))}catch(e){}}};
 let S=Object.assign({},DEF,LS.get('fx_settings',{}));
+if(/^gemini-(1\.5|2\.0|2\.5)-/.test(S.gemModel||''))S.gemModel=DEF.gemModel;
 let P=LS.get('fx_paper',null)||{balance:S.paperStart,positions:[],history:[],hedgedMain:null};
 const saveS=()=>LS.set('fx_settings',S);
 const saveP=()=>{P.history=P.history.slice(0,500);LS.set('fx_paper',P)};
@@ -314,7 +316,7 @@ function rsiW(a,p){const o=new Array(a.length).fill(null);if(a.length<=p)return 
   for(let i=p+1;i<a.length;i++){const d=a[i]-a[i-1];g=(g*(p-1)+Math.max(d,0))/p;l=(l*(p-1)+Math.max(-d,0))/p;o[i]=l===0?100:100-100/(1+g/l)}return o}
 
 // Same strategy as EA: M5 EMA trend + M1 EMA cross (last N closed bars) + RSI
-function analyze(bars){
+function analyze(bars,sym){
   const n=bars.length;if(n<150)return null;
   const c=bars.map(b=>b.c),f=ema(c,S.fast),s=ema(c,S.slow),r=rsiW(c,S.rsiP);
   const m5=[];let key=null;
@@ -327,7 +329,7 @@ function analyze(bars){
   const rv=r[i1];let sig='HOLD';
   if(bx&&f[i1]>s[i1]&&up&&rv>=S.rsiBuyMin&&rv<=S.rsiBuyMax)sig='BUY';
   else if(sx&&f[i1]<s[i1]&&dn&&rv>=S.rsiSellMin&&rv<=S.rsiSellMax)sig='SELL';
-  return {price:c[n-1],sig,rsi:rv,trend:up?1:dn?-1:0};
+  return {price:c[n-1],sig,rsi:rv,trend:up?1:dn?-1:0,gap:Math.abs(f[i1]-s[i1])/(sym&&sym.endsWith('JPY')?0.01:0.0001)};
 }
 function setMD(sym,a,src){
   const m=MD[sym],prev=m.sig;
@@ -345,22 +347,36 @@ async function tdFetch(sym){
   if(j.status!=='ok'||!j.values)throw new Error('Twelve Data: '+(j.message||'error'));
   return j.values.map(v=>({t:Date.parse(v.datetime.replace(' ','T')+'Z'),c:+v.close})).reverse();
 }
-let rr=0,tick=0;
+let tick=0;
 function openSyms(){return S.mode==='paper'?[...new Set(P.positions.map(p=>p.sym))]:[]}
 function nextSym(){
   tick++;const open=openSyms();
   if(open.length&&tick%2===0)return open[Math.floor(tick/2)%open.length];
   if(!inWindow())return open[0]||null;
-  return PAIRS[rr++%PAIRS.length];
+  // Smart: jis pair me signal banne ke chance zyada, use jaldi update karo
+  let best=null,bs=-1;const now=Date.now();
+  for(const p of PAIRS){const m=MD[p],age=m.upd?(now-m.upd)/1000:1e6;
+    let w=1;if(m.trend)w+=1;if(m.gap!=null&&m.gap<1.5)w+=2;if(m.sig==='BUY'||m.sig==='SELL')w+=3;
+    const sc=age*w;if(sc>bs){bs=sc;best=p}}
+  return best;
 }
+function windowMinsLeft(){const d=new Date(Date.now()+IST),now=d.getUTCHours()*60+d.getUTCMinutes();return ((S.endH*60-now+1440)%1440)||1}
+function tdDelay(){
+  const base=60000/Math.max(1,S.cpm);
+  if(!S.budget||!inWindow())return base;
+  const left=S.creditCap-credits().used;if(left<=0)return 60000;
+  const perMin=Math.min(S.cpm,left/windowMinsLeft());
+  return Math.max(base,60000/Math.max(0.05,perMin));
+}
+function pairRefreshMins(){return (tdDelay()*PAIRS.length/60000)}
 async function tdLoop(){
   try{
     if(S.tdKey&&!document.hidden&&!bridgeOnline()){
       if(credits().used>=S.creditCap)setErr('Twelve Data daily limit poori. Kal reset hogi ya plan upgrade karein.');
-      else{const sym=nextSym();if(sym){const a=analyze(await tdFetch(sym));if(a)setMD(sym,a,'Twelve Data');setErr('')}}
+      else{const sym=nextSym();if(sym){const a=analyze(await tdFetch(sym),sym);if(a)setMD(sym,a,'Twelve Data');setErr('')}}
     }
   }catch(e){setErr(e.message)}
-  setTimeout(tdLoop,Math.max(2000,60000/Math.max(1,S.cpm)));
+  setTimeout(tdLoop,Math.max(2000,tdDelay()));
 }
 
 /* ---------- Firebase (REST) + MT5 bridge ---------- */
@@ -496,8 +512,8 @@ function buildGrid(){
   <article class="pair mirror">
     <div class="sym silver" style="grid-area:info">${fmtSym(p)}<div class="px" id="px-${p}">Price aa raha hai…</div></div>
     <div class="coin wait" id="sg-${p}">…</div>
-    <div class="meta"><span class="tag" id="tr-${p}">M5 trend</span><span class="tag" id="rs-${p}">RSI</span><span class="tag" id="tc-${p}">0/${S.maxPerPair}</span><span class="tag news dim" id="nw-${p}" hidden>News</span></div>
-    <div class="acts"><button class="b buy" data-sym="${p}" data-dir="1">Buy</button><button class="b sell" data-sym="${p}" data-dir="-1">Sell</button></div>
+    <div class="meta"><span class="tag" id="tr-${p}">M5 trend</span><span class="tag" id="rs-${p}">RSI</span><span class="tag" id="tc-${p}">0/${S.maxPerPair}</span><span class="tag" id="ag-${p}">–</span><span class="tag news dim" id="nw-${p}" hidden>News</span></div>
+    <div class="acts"><button class="b buy" data-sym="${p}" data-dir="1" hidden>Buy</button><button class="b sell" data-sym="${p}" data-dir="-1" hidden>Sell</button><span class="waitnote" id="wn-${p}">Setup ka intezaar</span></div>
   </article>`).join('');
   $('aiPair').innerHTML=PAIRS.map(p=>`<option value="${p}">${fmtSym(p)}</option>`).join('');
 }
@@ -522,6 +538,7 @@ function render(){
   if(pos.length){bk.textContent=money(floating)+(pos.length>1?' (hedge on)':'');bk.className='stat dim '+(floating>=0?'pos':'neg')}
   else{bk.textContent='Koi nahi';bk.className='stat'}
   $('credits').textContent=bo?'MT5 se free':`${credits().used}/${S.creditCap}`;
+  $('creditInfo').textContent=bo?'Har 3 sec update':(S.tdKey?`Har pair ~${Math.max(1,Math.round(pairRefreshMins()))} min me update`:'');
   $('err').textContent=lastErr;
 
   const gb=globalBlock(),ban=$('banner');
@@ -529,8 +546,18 @@ function render(){
 
   for(const p of PAIRS){
     const m=MD[p],d=p.endsWith('JPY')?3:5;
-    $('px-'+p).textContent=m.price?m.price.toFixed(d)+'  '+(m.upd?Math.round((Date.now()-m.upd)/1000)+'s pehle':''):'Price aa raha hai…';
-    const c=$('sg-'+p);c.textContent=m.sig==='WAIT'?'…':m.sig;c.className='coin '+m.sig.toLowerCase();
+    $('px-'+p).textContent=m.price?m.price.toFixed(d):'Price aa raha hai…';
+    const ageS=m.upd?Math.round((Date.now()-m.upd)/1000):null;
+    const ag=$('ag-'+p);ag.textContent=ageS==null?'–':(ageS<60?ageS+'s pehle':Math.round(ageS/60)+' min pehle');
+    const fresh=ageS!=null&&ageS<=(m.src==='MT5'?30:180);
+    // BUY/SELL sirf taaza data par; purana ho to "Update…"
+    let show=m.sig;if((show==='BUY'||show==='SELL')&&!fresh)show='UPDATE';
+    const c=$('sg-'+p);c.textContent=show==='WAIT'?'…':show==='UPDATE'?'Update…':show;
+    c.className='coin '+(show==='UPDATE'?'wait':show.toLowerCase());
+    const bb=document.querySelector(`button[data-sym="${p}"][data-dir="1"]`),sb=document.querySelector(`button[data-sym="${p}"][data-dir="-1"]`);
+    bb.hidden=show!=='BUY';sb.hidden=show!=='SELL';
+    $('wn-'+p).hidden=show==='BUY'||show==='SELL';
+    $('wn-'+p).textContent=show==='UPDATE'?'Naya data aa raha hai':show==='WAIT'?'Data aa raha hai':'Setup ka intezaar';
     const t=$('tr-'+p);t.textContent=m.trend>0?'M5 ▲ Up':m.trend<0?'M5 ▼ Down':'M5 Flat';t.className='tag '+(m.trend>0?'up':m.trend<0?'dn':'');
     $('rs-'+p).textContent='RSI '+(m.rsi!=null?m.rsi.toFixed(0):'–');
     $('tc-'+p).textContent=`${tradesToday(p)}/${S.maxPerPair} aaj`;
@@ -566,12 +593,22 @@ $('closeAll').onclick=async()=>{
 };
 
 /* ================= GEMINI ================= */
-async function gemini(prompt,search){
+async function gemini(prompt,search,retried){
   if(!S.gemKey)throw new Error('Settings me Gemini API key daalein.');
   const body={contents:[{parts:[{text:prompt}]}]};if(search)body.tools=[{google_search:{}}];
   const r=await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${encodeURIComponent(S.gemModel)}:generateContent?key=${encodeURIComponent(S.gemKey)}`,
     {method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(body)});
-  const j=await r.json();if(j.error)throw new Error('Gemini: '+j.error.message);
+  const j=await r.json();
+  if(j.error){
+    // Model band ho gaya ho to Google ka suggest kiya naya model apne aap use karo
+    const msg=j.error.message||'';
+    const alt=[...msg.matchAll(/models\/(gemini-[a-z0-9.\-]+)/gi)].map(x=>x[1]).find(m=>m!==S.gemModel);
+    if(!retried&&alt&&/no longer|not found|deprecat|update your code/i.test(msg)){
+      S.gemModel=alt;saveS();fillForm();toast('Gemini model apne aap '+alt+' par update hua','ok');
+      return gemini(prompt,search,true);
+    }
+    throw new Error('Gemini: '+msg);
+  }
   return ((j.candidates&&j.candidates[0]&&j.candidates[0].content&&j.candidates[0].content.parts)||[]).map(p=>p.text||'').join('')||'Jawab khali aaya.';
 }
 async function runAI(search){
@@ -591,7 +628,7 @@ const FORM=[
  ['Trade rules',[['lot','number','Lot size'],['minNet','number','Min net profit (lock) $'],['maxNet','number','Max net profit $'],['hedgeTrig','number','Kitne $ loss par hedge khule'],['basketTarget','number','Main + hedge target $'],['basketDD','number','Main + hedge max loss $'],['dailyTarget','number','Daily profit target $'],['dailyLoss','number','Daily max loss $'],['maxPerPair','number','Har pair par trades/din'],['startH','number','Start hour (IST)'],['endH','number','End hour (IST)']]],
  ['Strategy',[['validBars','number','Signal kitne M1 bar tak valid'],['fast','number','Fast EMA'],['slow','number','Slow EMA'],['trend','number','M5 trend EMA'],['rsiP','number','RSI period'],['rsiBuyMin','number','RSI buy min'],['rsiBuyMax','number','RSI buy max'],['rsiSellMin','number','RSI sell min'],['rsiSellMax','number','RSI sell max']]],
  ['Paper account',[['paperStart','number','Starting balance $'],['spreadMaj','number','Spread majors (pips)'],['spreadCross','number','Spread crosses (pips)'],['commission','number','Commission $ per lot']]],
- ['Data aur alerts',[['cpm','number','Twelve Data calls per minute'],['creditCap','number','Twelve Data daily limit'],['alerts','checkbox','Signal par sound + vibration'],['backupKeys','checkbox','Firebase backup me keys bhi save hon']]]
+ ['Data aur alerts',[['cpm','number','Twelve Data calls per minute'],['creditCap','number','Twelve Data daily limit'],['budget','checkbox','Credits poore trading time tak chalayein (auto speed)'],['alerts','checkbox','Signal par sound + vibration'],['backupKeys','checkbox','Firebase backup me keys bhi save hon']]]
 ];
 function buildForm(){
   $('form').innerHTML=FORM.map(([title,fields])=>`<div class="fgroup mirror"><h3>${title}</h3><div class="${fields.length>3&&fields.every(f=>f[1]==='number')?'two':''}">`+
