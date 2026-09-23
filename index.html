@@ -276,7 +276,7 @@ const HEDGE={EURUSD:['USDCHF','N'],GBPUSD:['USDCHF','N'],AUDUSD:['USDCAD','N'],N
   USDCHF:['EURUSD','N'],USDJPY:['EURUSD','N'],EURJPY:['GBPJPY','P'],GBPJPY:['EURJPY','P'],EURGBP:['GBPUSD','N']};
 const DEF={mode:'paper',tdKey:'',gemKey:'',gemModel:'gemini-3.6-flash',fbUrl:'',bridgeId:'',fbAuth:'',backupKeys:true,
   lot:0.01,minNet:0.10,maxNet:0.20,hedgeTrig:1.00,basketTarget:0.10,basketDD:5,dailyTarget:5,dailyLoss:10,maxPerPair:10,
-  startH:7,endH:16,paperStart:200,spreadMaj:1.0,spreadCross:2.0,commission:0,
+  paperStart:200,spreadMaj:1.0,spreadCross:2.0,commission:0,
   validBars:3,fast:9,slow:21,trend:50,rsiP:14,rsiBuyMin:50,rsiBuyMax:70,rsiSellMin:30,rsiSellMax:50,
   cpm:8,creditCap:800,budget:true,alerts:true};
 
@@ -300,7 +300,8 @@ const IST=330*60000;
 const istDayOf=t=>new Date(t+IST).toISOString().slice(0,10);
 const istDay=()=>istDayOf(Date.now());
 const istStr=t=>new Date(t+IST).toISOString().slice(11,16);
-function inWindow(){const h=new Date(Date.now()+IST).getUTCHours();return S.startH<=S.endH?(h>=S.startH&&h<S.endH):(h>=S.startH||h<S.endH)}
+// Time limit hata diya: app ab 24 ghante signal deta hai
+function inWindow(){return true}
 function toast(msg,type=''){const t=$('toast');t.textContent=msg;t.className=type;t.style.display='block';clearTimeout(toast._t);toast._t=setTimeout(()=>t.style.display='none',3500)}
 function confirmBox(text){return new Promise(res=>{$('modalText').textContent=text;$('modal').classList.add('show');
   $('mYes').onclick=()=>{$('modal').classList.remove('show');res(true)};$('mNo').onclick=()=>{$('modal').classList.remove('show');res(false)}})}
@@ -325,7 +326,9 @@ function analyze(bars,sym){
   const tr=ema(m5,S.trend),L=m5.length,tc=m5[L-2],t1=tr[L-2],t2=tr[L-3];
   const up=tc>t1&&t1>t2,dn=tc<t1&&t1<t2,i1=n-2;
   let bx=false,sx=false;
-  for(let k=0;k<S.validBars;k++){const a=i1-k,b=a-1;if(b<0)break;if(f[a]>s[a]&&f[b]<=s[b])bx=true;if(f[a]<s[a]&&f[b]>=s[b])sx=true}
+  // FIX: har pair ~N min me ek baar update hota hai; cross-lookback kam se kam utna ho, warna cross beech me miss ho jata hai
+  const vb=Math.min(12,Math.max(S.validBars,Math.ceil(pairRefreshMins())+1));
+  for(let k=0;k<vb;k++){const a=i1-k,b=a-1;if(b<0)break;if(f[a]>s[a]&&f[b]<=s[b])bx=true;if(f[a]<s[a]&&f[b]>=s[b])sx=true}
   const rv=r[i1];let sig='HOLD';
   if(bx&&f[i1]>s[i1]&&up&&rv>=S.rsiBuyMin&&rv<=S.rsiBuyMax)sig='BUY';
   else if(sx&&f[i1]<s[i1]&&dn&&rv>=S.rsiSellMin&&rv<=S.rsiSellMax)sig='SELL';
@@ -360,7 +363,8 @@ function nextSym(){
     const sc=age*w;if(sc>bs){bs=sc;best=p}}
   return best;
 }
-function windowMinsLeft(){const d=new Date(Date.now()+IST),now=d.getUTCHours()*60+d.getUTCMinutes();return ((S.endH*60-now+1440)%1440)||1}
+// Credits Twelve Data ke reset (UTC midnight = 5:30 AM IST) tak baraabar baante
+function windowMinsLeft(){const d=new Date(),now=d.getUTCHours()*60+d.getUTCMinutes();return (1440-now)||1}
 function tdDelay(){
   const base=60000/Math.max(1,S.cpm);
   if(!S.budget||!inWindow())return base;
@@ -474,7 +478,6 @@ function globalBlock(){
   const dn=dailyNet();
   if(dn<=-S.dailyLoss)return `Aaj ka loss limit (${money(S.dailyLoss)}) hit. Kal fir trade karein.`;
   if(dn>=S.dailyTarget)return `Aaj ka profit target (${money(S.dailyTarget)}) poora. Naye trades band.`;
-  if(!inWindow())return `Trading time ${S.startH}:00 se ${S.endH}:00 IST hai. Abhi naye trades band.`;
   return '';
 }
 function pairBlock(sym){
@@ -522,7 +525,7 @@ $('grid').addEventListener('click',e=>{const b=e.target.closest('button[data-sym
 let listSig='';
 function render(){
   $('clock').textContent=istStr(Date.now())+' IST';
-  const iw=inWindow();$('sessChip').textContent=iw?'Trading time':'Market band (aapke rules)';$('sessChip').className='chip '+(iw?'on':'warn');
+  const iw=inWindow();$('sessChip').textContent=iw?'24 ghante on':'Market band';$('sessChip').className='chip '+(iw?'on':'warn');
   $('modeChip').textContent=S.mode==='paper'?'Paper trading':'MT5 live';
   const bo=bridgeOnline();$('srcChip').textContent=bo?'Data: MT5 live':(S.tdKey?'Data: Twelve Data':'Data: key nahi');$('srcChip').className='chip '+(bo?'on':'');
 
@@ -549,15 +552,17 @@ function render(){
     $('px-'+p).textContent=m.price?m.price.toFixed(d):'Price aa raha hai…';
     const ageS=m.upd?Math.round((Date.now()-m.upd)/1000):null;
     const ag=$('ag-'+p);ag.textContent=ageS==null?'–':(ageS<60?ageS+'s pehle':Math.round(ageS/60)+' min pehle');
-    const fresh=ageS!=null&&ageS<=(m.src==='MT5'?30:180);
-    // BUY/SELL sirf taaza data par; purana ho to "Update…"
-    let show=m.sig;if((show==='BUY'||show==='SELL')&&!fresh)show='UPDATE';
+    // FIX: Twelve Data me har pair ~N min me update hota hai, isliye fresh limit usi hisaab se
+    const lim=m.src==='MT5'?30:Math.max(180,Math.round(pairRefreshMins()*60*1.5));
+    const fresh=ageS!=null&&ageS<=lim;
+    // FIX: purana HOLD bhi "Update…" dikhega (pehle purana HOLD asli HOLD jaisa dikhta tha)
+    let show=m.sig;if(show!=='WAIT'&&!fresh)show='UPDATE';
     const c=$('sg-'+p);c.textContent=show==='WAIT'?'…':show==='UPDATE'?'Update…':show;
     c.className='coin '+(show==='UPDATE'?'wait':show.toLowerCase());
     const bb=document.querySelector(`button[data-sym="${p}"][data-dir="1"]`),sb=document.querySelector(`button[data-sym="${p}"][data-dir="-1"]`);
     bb.hidden=show!=='BUY';sb.hidden=show!=='SELL';
     $('wn-'+p).hidden=show==='BUY'||show==='SELL';
-    $('wn-'+p).textContent=show==='UPDATE'?'Naya data aa raha hai':show==='WAIT'?'Data aa raha hai':'Setup ka intezaar';
+    $('wn-'+p).textContent=show==='UPDATE'?(lastErr?'Data ruka hai, upar error dekhein':document.hidden?'App background me tha':'Naya data aa raha hai'):show==='WAIT'?'Data aa raha hai':'Setup ka intezaar';
     const t=$('tr-'+p);t.textContent=m.trend>0?'M5 ▲ Up':m.trend<0?'M5 ▼ Down':'M5 Flat';t.className='tag '+(m.trend>0?'up':m.trend<0?'dn':'');
     $('rs-'+p).textContent='RSI '+(m.rsi!=null?m.rsi.toFixed(0):'–');
     $('tc-'+p).textContent=`${tradesToday(p)}/${S.maxPerPair} aaj`;
@@ -614,7 +619,7 @@ async function gemini(prompt,search,retried){
 async function runAI(search){
   const p=$('aiPair').value,m=MD[p],out=$('aiOut');out.textContent='Gemini soch raha hai…';
   const prompt=search
-    ?`Aaj (${istDay()}) ${fmtSym(p)} ke liye ${p.slice(0,3)} aur ${p.slice(3)} currencies ki high impact economic news ka IST time batao, khaas kar ${S.startH}:00 se ${S.endH}:00 IST ke beech. Hinglish me, chhoti list me. Agar pakka pata na ho to saaf bolo.`
+    ?`Aaj (${istDay()}) ${fmtSym(p)} ke liye ${p.slice(0,3)} aur ${p.slice(3)} currencies ki high impact economic news ka IST time batao. Hinglish me, chhoti list me. Agar pakka pata na ho to saaf bolo.`
     :`Tum forex scalping assistant ho. Pair ${fmtSym(p)}. Strategy: M5 EMA${S.trend} trend filter, M1 EMA${S.fast}/${S.slow} crossover, RSI${S.rsiP}. Abhi: price ${m.price}, signal ${m.sig}, M5 trend ${m.trend>0?'up':m.trend<0?'down':'flat'}, RSI ${m.rsi!=null?m.rsi.toFixed(1):'NA'}. Target net $${S.minNet}-$${S.maxNet} per 0.01 lot. Hinglish me 4-5 line me samjhao: signal kitna mazboot hai, kya risk hai, entry ke liye kya dekhna chahiye. Guarantee mat do.`;
   try{out.textContent=await gemini(prompt,search)}catch(e){out.textContent=e.message}
 }
@@ -625,7 +630,7 @@ const FORM=[
  ['Mode',[['mode','select','Trading mode',{paper:'Paper trading (practice)',live:'MT5 live (bridge se)'}]]],
  ['API keys',[['tdKey','password','Twelve Data API key'],['gemKey','password','Gemini API key'],['gemModel','text','Gemini model name']]],
  ['MT5 bridge (Firebase)',[['fbUrl','text','Firebase Realtime Database URL'],['bridgeId','text','Bridge ID (16+ akshar, EA me bhi yahi)'],['fbAuth','password','Firebase secret (optional)']]],
- ['Trade rules',[['lot','number','Lot size'],['minNet','number','Min net profit (lock) $'],['maxNet','number','Max net profit $'],['hedgeTrig','number','Kitne $ loss par hedge khule'],['basketTarget','number','Main + hedge target $'],['basketDD','number','Main + hedge max loss $'],['dailyTarget','number','Daily profit target $'],['dailyLoss','number','Daily max loss $'],['maxPerPair','number','Har pair par trades/din'],['startH','number','Start hour (IST)'],['endH','number','End hour (IST)']]],
+ ['Trade rules',[['lot','number','Lot size'],['minNet','number','Min net profit (lock) $'],['maxNet','number','Max net profit $'],['hedgeTrig','number','Kitne $ loss par hedge khule'],['basketTarget','number','Main + hedge target $'],['basketDD','number','Main + hedge max loss $'],['dailyTarget','number','Daily profit target $'],['dailyLoss','number','Daily max loss $'],['maxPerPair','number','Har pair par trades/din']]],
  ['Strategy',[['validBars','number','Signal kitne M1 bar tak valid'],['fast','number','Fast EMA'],['slow','number','Slow EMA'],['trend','number','M5 trend EMA'],['rsiP','number','RSI period'],['rsiBuyMin','number','RSI buy min'],['rsiBuyMax','number','RSI buy max'],['rsiSellMin','number','RSI sell min'],['rsiSellMax','number','RSI sell max']]],
  ['Paper account',[['paperStart','number','Starting balance $'],['spreadMaj','number','Spread majors (pips)'],['spreadCross','number','Spread crosses (pips)'],['commission','number','Commission $ per lot']]],
  ['Data aur alerts',[['cpm','number','Twelve Data calls per minute'],['creditCap','number','Twelve Data daily limit'],['budget','checkbox','Credits poore trading time tak chalayein (auto speed)'],['alerts','checkbox','Signal par sound + vibration'],['backupKeys','checkbox','Firebase backup me keys bhi save hon']]]
